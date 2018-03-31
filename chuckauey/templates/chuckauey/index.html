@@ -1,0 +1,18 @@
+<h1>GEO-Test</h1>
+
+<form method="post" action="./">
+    {% csrf_token %}
+    <table>
+        {{ form }}
+    </table>
+    <input type="submit" value="Search" />
+</form>
+
+{% if signs %}
+<h2>Signs near you</h2>
+<ul>
+    {% for sign in signs %}
+    <li><b>{{ sign.bay_id }}</b>: distance: {{ sign.distance }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
