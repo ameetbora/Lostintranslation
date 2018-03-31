@@ -47,7 +47,7 @@ class ListUsers(APIView):
         try:
             if lat and lon and day and time:
                 #query = """SELECT 1 as id, Bay_id, (3959*acos(cos(radians(%2f))*cos(radians(Lat))*cos(radians(Lon)-radians(%2f))+sin(radians(%2f))*sin(radians(Lat)))) AS distance FROM chuckauey.onstreet_parking_bay_sensors HAVING distance < 1 ORDER BY distance LIMIT 0, 20""" % (float(lat), float(lon), float(lat),)
-                query = 'SELECT 1 as id, Bay_id, Location, SQRT( POW(Lon - (%2f), 2) + POW(Lat - (%2f), 2) ) as distance FROM chuckauey.onstreet_parking_bay_sensors HAVING distance < 0.00004 ORDER BY distance LIMIT 0,20'%(float(lon),float(lat))
+                query = 'SELECT 1 as id, Bay_id, Location, SQRT( POW(Lon - (%2f), 2) + POW(Lat - (%2f), 2) ) as distance FROM onstreet_parking_bay_sensors HAVING distance < 0.00004 ORDER BY distance LIMIT 0,20'%(float(lon),float(lat))
                 signs = OnstreetParkingBaySensors.objects.raw(query)
                 for sign in signs:
                     #print sign.bay_id, sign.distance, sign.location
