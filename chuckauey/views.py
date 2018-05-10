@@ -300,25 +300,36 @@ class FindPark(APIView):
         day = day.capitalize()
         #print (day)
         time = request.GET.get('time')
+        free = request.GET.get('free')
         responsedict = dict()
         restriction_dict = dict()
         try:
-            if lat and lon and day and time:
+            if lat and lon and day and time and free:
                 print ('############-------------Start Nearby Parking--------------------------###################')
-                print (lat,lon,day,time)
-                query = 'SELECT 1 as id, Bay_id, Lat, Lon, St_marker_id, (6367*acos(cos(radians(%2f))*cos(radians(Lat))*cos(radians(Lon)-radians(%2f))+sin(radians(%2f))*sin(radians(Lat)))) AS distance FROM onstreet_parking_bay_sensors HAVING distance > 0.05 ORDER BY distance LIMIT 0,20' %(float(lat),float(lon),float(lat))
+                print (lat,lon,day,time,free)
+                query = 'SELECT 1 as id, Bay_id, Lat, Lon, St_marker_id, (6367*acos(cos(radians(%2f))*cos(radians(Lat))*cos(radians(Lon)-radians(%2f))+sin(radians(%2f))*sin(radians(Lat)))) AS distance FROM onstreet_parking_bay_sensors HAVING distance > 0.05 ORDER BY distance LIMIT 0,50' %(float(lat),float(lon),float(lat))
                 signs = OnstreetParkingBaySensors.objects.raw(query)
                 client = Socrata("data.melbourne.vic.gov.au", None)
                 #print(signs)
                 mlist = list()
+                mlist_free = list()
                 for sign in signs:
                     temp = dict()
-                    print(sign.bay_id, sign.distance, sign.lat, sign.lon)
+                    #print(sign.bay_id, sign.distance, sign.lat, sign.lon)
                     temp['Bay_ID']=int(sign.bay_id)
                     temp['Distance']=sign.distance
                     temp['Lat']=sign.lat
                     temp['Lon']=sign.lon
                     temp['Marker_ID'] = sign.st_marker_id
+                    find_status = client.get("vh2v-4nfs", bay_id=sign.bay_id)
+                    #print (find_status)
+                    if find_status:
+                        if find_status[0]['status'] == "Unoccupied":
+                            temp['Status'] = find_status[0]['status']
+                        else:
+                            continue
+                    else:
+                        continue
                     result = client.get("rzb8-bz3y", bayid=temp['Bay_ID'])
                     #print (result)
                     if result:
@@ -334,18 +345,39 @@ class FindPark(APIView):
                     else:
                         temp['Street'] = 'Unknown Street'
                     temp.update(res)
-                    print(temp)
 
+                    temp.pop('Bay_ID', None)
+                    temp.pop('Marker_ID', None)
+                    print(temp)
                     if temp['Response'] == 'Yes' or temp['Response'] == 'No restriction':
-                        mlist.append(temp)
-                        print (mlist)
+                        if 'ParkingType' in temp:
+                            if temp['ParkingType'] == 'Free':
+                                mlist_free.append(temp)
+                                mlist.append(temp)
+                            else:
+                                mlist.append(temp)
+                        else:
+                            mlist_free.append(temp)
+                            mlist.append(temp)
+                        #print (mlist)
                     else:
                         continue
 
-                if len(mlist) < 5:
-                    return Response(mlist)
+                print(mlist)
+                print(mlist_free)
+                if free == 'yes':
+                    if len(mlist_free)>0 and len(mlist_free) < 5:
+                        return Response(mlist_free)
+                    elif len(mlist_free) > 5:
+                        return Response(mlist_free[0:5])
+                    else:
+                        responsedict['Response']='No Nearby Free parking available'
+                        return Response(responsedict)
                 else:
-                    return Response(mlist[0:5])
+                    if len(mlist) < 5:
+                        return Response(mlist)
+                    else:
+                        return Response(mlist[0:5])
 
             else:
                 responsedict['Response']= 'Input parameters missing'
